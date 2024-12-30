@@ -43,6 +43,10 @@ def intelligent_cleaning(text, num_clusters=3):
     sentences = re.split(r"(?<=[\.\!\?])\s", cleaned_text)  # Split on sentence-ending punctuation
     sentences = [s.strip() for s in sentences if len(s.strip()) > 0]
     
+    # If the number of sentences is less than or equal to the number of clusters, return the cleaned text
+    if len(sentences) <= num_clusters:
+        return cleaned_text
+
     # Step 3: Generate embeddings for sentences
     model = SentenceTransformer('all-MiniLM-L6-v2')  # Lightweight transformer for sentence embeddings
     embeddings = model.encode(sentences)
@@ -64,12 +68,42 @@ def intelligent_cleaning(text, num_clusters=3):
 # Directory containing .txt files
 directory = 'txt'
 
+# Log file to keep track of processed files
+log_file = 'processed_files.log'
+
+# Load processed files log
+processed_files = {}
+if os.path.exists(log_file):
+    with open(log_file, 'r') as f:
+        for line in f:
+            filename, char_count = line.strip().split(': ')
+            processed_files[filename] = int(char_count)
+
 # Process all files in the directory
 for filename in os.listdir(directory):
-    file_path = os.path.join(directory, filename)
-    with open(file_path, "r", encoding="utf-8") as f:
-        raw_text = f.read()
-
-    # Preprocess and intelligently clean the text
-    processed_text = intelligent_cleaning(raw_text)
-    print(f"Processed {filename}: {len(processed_text)} characters retained.")
+    if filename.endswith('.txt'):
+        file_path = os.path.join(directory, filename)
+        
+        # Check if the file has already been processed
+        if filename in processed_files:
+            print(f"Skipping {filename}: already processed with {processed_files[filename]} characters retained.")
+            continue
+        
+        # Read the file content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            text = f.read()
+        
+        # Clean the text
+        cleaned_text = intelligent_cleaning(text)
+        
+        # Save the cleaned text
+        cleaned_file_path = os.path.join(directory+'/cleaned/', f"cleaned_{filename}")
+        with open(cleaned_file_path, 'w', encoding='utf-8') as f:
+            f.write(cleaned_text)
+        
+        # Log the processed file
+        char_count = len(cleaned_text)
+        with open(log_file, 'a') as f:
+            f.write(f"{filename}: {char_count}\n")
+        
+        print(f"Processed {filename}: {char_count} characters retained.")
